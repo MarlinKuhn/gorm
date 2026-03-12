@@ -183,14 +183,14 @@ func (c *g[T]) Raw(sql string, values ...interface{}) ExecInterface[T] {
 		db: c.db,
 		ops: append(c.ops, func(db *DB) *DB {
 			var r T
-			return db.Model(r).Raw(sql, values...)
+			return db.Model(&r).Raw(sql, values...)
 		}),
 	}}
 }
 
 func (c *g[T]) Exec(ctx context.Context, sql string, values ...interface{}) error {
 	var r T
-	return c.apply(ctx).Model(r).Exec(sql, values...).Error
+	return c.apply(ctx).Model(&r).Exec(sql, values...).Error
 }
 
 type createG[T any] struct {
@@ -233,7 +233,7 @@ type chainG[T any] struct {
 
 func (c chainG[T]) getInstance() *DB {
 	var r T
-	return c.g.apply(context.Background()).Model(r).getInstance()
+	return c.g.apply(context.Background()).Model(&r).getInstance()
 }
 
 func (c chainG[T]) with(v op) chainG[T] {
@@ -565,7 +565,7 @@ func (c chainG[T]) Delete(ctx context.Context) (rowsAffected int, err error) {
 
 func (c chainG[T]) Update(ctx context.Context, name string, value any) (rowsAffected int, err error) {
 	var r T
-	res := c.g.apply(ctx).Model(r).Update(name, value)
+	res := c.g.apply(ctx).Model(&r).Update(name, value)
 	return int(res.RowsAffected), res.Error
 }
 
@@ -576,7 +576,7 @@ func (c chainG[T]) Updates(ctx context.Context, t T) (rowsAffected int, err erro
 
 func (c chainG[T]) Count(ctx context.Context, column string) (result int64, err error) {
 	var r T
-	err = c.g.apply(ctx).Model(r).Select(column).Count(&result).Error
+	err = c.g.apply(ctx).Model(&r).Select(column).Count(&result).Error
 	return
 }
 
@@ -629,7 +629,7 @@ func (g execG[T]) First(ctx context.Context) (T, error) {
 
 func (g execG[T]) Scan(ctx context.Context, result interface{}) error {
 	var r T
-	err := g.g.apply(ctx).Model(r).Find(result).Error
+	err := g.g.apply(ctx).Model(&r).Find(result).Error
 	return err
 }
 
@@ -660,12 +660,12 @@ func (g execG[T]) FindInBatches(ctx context.Context, batchSize int, fc func(data
 
 func (g execG[T]) Row(ctx context.Context) *sql.Row {
 	var r T
-	return g.g.apply(ctx).Model(r).Row()
+	return g.g.apply(ctx).Model(&r).Row()
 }
 
 func (g execG[T]) Rows(ctx context.Context) (*sql.Rows, error) {
 	var r T
-	return g.g.apply(ctx).Model(r).Rows()
+	return g.g.apply(ctx).Model(&r).Rows()
 }
 
 func (c chainG[T]) processSet(items ...clause.Assigner) setCreateOrUpdateG[T] {
@@ -709,7 +709,7 @@ func (s setCreateOrUpdateG[T]) Update(ctx context.Context) (rowsAffected int, er
 	// Execute assignment operations
 	if len(s.assigns) > 0 {
 		var r T
-		res := s.c.g.apply(ctx).Model(r).Clauses(clause.Set(s.assigns)).Updates(map[string]interface{}{})
+		res := s.c.g.apply(ctx).Model(&r).Clauses(clause.Set(s.assigns)).Updates(map[string]interface{}{})
 		return int(res.RowsAffected), res.Error
 	}
 
@@ -731,7 +731,7 @@ func (s setCreateOrUpdateG[T]) Create(ctx context.Context) error {
 			data[a.Column.Name] = a.Value
 		}
 		var r T
-		return s.c.g.apply(ctx).Model(r).Create(data).Error
+		return s.c.g.apply(ctx).Model(&r).Create(data).Error
 	}
 
 	return nil
@@ -740,7 +740,7 @@ func (s setCreateOrUpdateG[T]) Create(ctx context.Context) error {
 // executeAssociationOperation executes an association operation
 func (s setCreateOrUpdateG[T]) executeAssociationOperation(ctx context.Context, op clause.Association) error {
 	var r T
-	base := s.c.g.apply(ctx).Model(r)
+	base := s.c.g.apply(ctx).Model(&r)
 
 	switch op.Type {
 	case clause.OpCreate:
