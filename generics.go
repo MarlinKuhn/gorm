@@ -77,6 +77,7 @@ type ChainInterface[T any] interface {
 	Limit(offset int) ChainInterface[T]
 	Offset(offset int) ChainInterface[T]
 	Joins(query clause.JoinTarget, on func(db JoinBuilder, joinTable clause.Table, curTable clause.Table) error) ChainInterface[T]
+	Join(jt clause.JoinTarget, on func(db ExternalJoinBuilder, joinTable clause.Table, curTable clause.Table) error) ChainInterface[T]
 	Preload(association string, query func(db PreloadBuilder) error) ChainInterface[T]
 	Select(query string, args ...interface{}) ChainInterface[T]
 	Omit(columns ...string) ChainInterface[T]
@@ -121,6 +122,12 @@ type ExecInterface[T any] interface {
 type JoinBuilder interface {
 	Select(...string) JoinBuilder
 	Omit(...string) JoinBuilder
+	Where(query interface{}, args ...interface{}) JoinBuilder
+	Not(query interface{}, args ...interface{}) JoinBuilder
+	Or(query interface{}, args ...interface{}) JoinBuilder
+}
+
+type ExternalJoinBuilder interface {
 	Where(query interface{}, args ...interface{}) JoinBuilder
 	Not(query interface{}, args ...interface{}) JoinBuilder
 	Or(query interface{}, args ...interface{}) JoinBuilder
@@ -424,6 +431,35 @@ func (c chainG[T]) Joins(jt clause.JoinTarget, on func(db JoinBuilder, joinTable
 		sort.Slice(db.Statement.Joins, func(i, j int) bool {
 			return db.Statement.Joins[i].Name < db.Statement.Joins[j].Name
 		})
+		return db
+	})
+}
+
+func (c chainG[T]) Join(jt clause.JoinTarget, on func(db ExternalJoinBuilder, joinTable clause.Table, curTable clause.Table) error) ChainInterface[T] {
+	return c.with(func(db *DB) *DB {
+		fromClause := clause.From{}
+		if v, ok := db.Statement.Clauses["FROM"].Expression.(clause.From); ok {
+			fromClause = v
+		}
+
+		q := joinBuilder{db: db.Session(&Session{NewDB: true, Initialized: true}).Table(jt.Table)}
+		if on != nil {
+			if err := on(&q, clause.Table{Name: jt.Table}, clause.Table{Name: clause.CurrentTable}); err != nil {
+				db.AddError(err)
+			}
+		}
+
+		join := clause.Join{
+			Type:  jt.Type,
+			Table: clause.Table{Name: jt.Association, Alias: jt.Table},
+		}
+
+		if where, ok := q.db.Statement.Clauses["WHERE"].Expression.(clause.Where); ok {
+			join.ON = where
+		}
+
+		fromClause.Joins = append(fromClause.Joins, join)
+		db.Statement.AddClause(fromClause)
 		return db
 	})
 }
