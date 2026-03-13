@@ -612,7 +612,11 @@ func (c chainG[T]) Updates(ctx context.Context, t T) (rowsAffected int, err erro
 
 func (c chainG[T]) Count(ctx context.Context, column string) (result int64, err error) {
 	var r T
-	err = c.g.apply(ctx).Model(r).Select(column).Count(&result).Error
+	tx := c.g.apply(ctx).Model(r)
+	if len(column) > 0 && column != "*" {
+		tx = tx.Select(column)
+	}
+	err = tx.Count(&result).Error
 	return
 }
 
