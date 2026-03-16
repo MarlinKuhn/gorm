@@ -437,6 +437,10 @@ func (c chainG[T]) Joins(jt clause.JoinTarget, on func(db JoinBuilder, joinTable
 
 func (c chainG[T]) Join(jt clause.JoinTarget, on func(db ExternalJoinBuilder, joinTable clause.Table, curTable clause.Table) error) ChainInterface[T] {
 	return c.with(func(db *DB) *DB {
+		if jt.Table == "" || jt.Table == clause.CurrentTable {
+			jt.Table = clause.JoinTable(strings.Split(jt.Association, ".")...).Name
+		}
+
 		fromClause := clause.From{}
 		if v, ok := db.Statement.Clauses["FROM"].Expression.(clause.From); ok {
 			fromClause = v
