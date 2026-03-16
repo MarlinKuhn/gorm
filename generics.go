@@ -41,6 +41,7 @@ type CreateInterface[T any] interface {
 	ExecInterface[T]
 	// chain methods available at start; Select/Omit keep CreateInterface to allow Create chaining
 	Scopes(scopes ...func(db *Statement)) ChainInterface[T]
+	Clauses(clauses ...clause.Expression) CreateInterface[T]
 	Where(query interface{}, args ...interface{}) ChainInterface[T]
 	Not(query interface{}, args ...interface{}) ChainInterface[T]
 	Or(query interface{}, args ...interface{}) ChainInterface[T]
@@ -71,6 +72,7 @@ type CreateInterface[T any] interface {
 type ChainInterface[T any] interface {
 	ExecInterface[T]
 	Scopes(scopes ...func(db *Statement)) ChainInterface[T]
+	Clauses(clauses ...clause.Expression) ChainInterface[T]
 	Where(query interface{}, args ...interface{}) ChainInterface[T]
 	Not(query interface{}, args ...interface{}) ChainInterface[T]
 	Or(query interface{}, args ...interface{}) ChainInterface[T]
@@ -210,6 +212,12 @@ func (c createG[T]) Table(name string, args ...interface{}) CreateInterface[T] {
 	})}
 }
 
+func (c createG[T]) Clauses(clauses ...clause.Expression) CreateInterface[T] {
+	return createG[T]{c.with(func(db *DB) *DB {
+		return db.Clauses(clauses...)
+	})}
+}
+
 func (c createG[T]) Select(query string, args ...interface{}) CreateInterface[T] {
 	return createG[T]{c.with(func(db *DB) *DB {
 		return db.Select(query, args...)
@@ -294,6 +302,12 @@ func (c chainG[T]) Limit(offset int) ChainInterface[T] {
 func (c chainG[T]) Offset(offset int) ChainInterface[T] {
 	return c.with(func(db *DB) *DB {
 		return db.Offset(offset)
+	})
+}
+
+func (c chainG[T]) Clauses(clauses ...clause.Expression) ChainInterface[T] {
+	return c.with(func(db *DB) *DB {
+		return db.Clauses(clauses...)
 	})
 }
 
