@@ -42,6 +42,7 @@ type CreateInterface[T any] interface {
 	// chain methods available at start; Select/Omit keep CreateInterface to allow Create chaining
 	Scopes(scopes ...func(db *Statement)) ChainInterface[T]
 	Clauses(clauses ...clause.Expression) CreateInterface[T]
+	Unscoped() ChainInterface[T]
 	Where(query interface{}, args ...interface{}) ChainInterface[T]
 	Not(query interface{}, args ...interface{}) ChainInterface[T]
 	Or(query interface{}, args ...interface{}) ChainInterface[T]
@@ -76,6 +77,7 @@ type ChainInterface[T any] interface {
 	Where(query interface{}, args ...interface{}) ChainInterface[T]
 	Not(query interface{}, args ...interface{}) ChainInterface[T]
 	Or(query interface{}, args ...interface{}) ChainInterface[T]
+	Unscoped() ChainInterface[T]
 	Limit(offset int) ChainInterface[T]
 	Offset(offset int) ChainInterface[T]
 	Joins(query clause.JoinTarget, on func(db JoinBuilder, joinTable clause.Table, curTable clause.Table) error) ChainInterface[T]
@@ -136,6 +138,8 @@ type ExternalJoinBuilder interface {
 }
 
 type PreloadBuilder interface {
+	Scopes(...func(db *Statement)) PreloadBuilder
+	Unscoped() PreloadBuilder
 	Select(...string) PreloadBuilder
 	Omit(...string) PreloadBuilder
 	Where(query interface{}, args ...interface{}) PreloadBuilder
@@ -275,6 +279,12 @@ func (c chainG[T]) Scopes(scopes ...func(db *Statement)) ChainInterface[T] {
 	})
 }
 
+func (c chainG[T]) Unscoped() ChainInterface[T] {
+	return c.with(func(db *DB) *DB {
+		return db.Unscoped()
+	})
+}
+
 func (c chainG[T]) Where(query interface{}, args ...interface{}) ChainInterface[T] {
 	return c.with(func(db *DB) *DB {
 		return db.Where(query, args...)
@@ -347,6 +357,18 @@ type preloadBuilder struct {
 
 func (q *preloadBuilder) Where(query interface{}, args ...interface{}) PreloadBuilder {
 	q.db.Where(query, args...)
+	return q
+}
+
+func (q *preloadBuilder) Scopes(scopes ...func(db *Statement)) PreloadBuilder {
+	for _, scope := range scopes {
+		scope(q.db.Statement)
+	}
+	return q
+}
+
+func (q *preloadBuilder) Unscoped() PreloadBuilder {
+	q.db.Unscoped()
 	return q
 }
 
