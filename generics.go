@@ -797,7 +797,7 @@ func (s setCreateOrUpdateG[T]) Update(ctx context.Context) (rowsAffected int, er
 	// Execute assignment operations
 	if len(s.assigns) > 0 {
 		r := new(T)
-		res := s.c.g.apply(ctx).Model(r).Clauses(clause.Set(s.assigns)).Updates(map[string]interface{}{})
+		res := s.c.g.apply(ctx).Model(r).Clauses(clause.Set(s.assigns)).UpdateColumns(map[string]interface{}{})
 		return int(res.RowsAffected), res.Error
 	}
 
