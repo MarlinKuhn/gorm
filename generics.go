@@ -115,6 +115,7 @@ type SetCreateOrUpdateInterface[T any] interface {
 
 type ExecInterface[T any] interface {
 	Scan(ctx context.Context, r interface{}) error
+	Pluck(ctx context.Context, column string, result interface{}) error
 	First(context.Context) (T, error)
 	Last(ctx context.Context) (T, error)
 	Take(context.Context) (T, error)
@@ -709,8 +710,12 @@ func (g execG[T]) First(ctx context.Context) (T, error) {
 }
 
 func (g execG[T]) Scan(ctx context.Context, result interface{}) error {
-	var r T
-	err := g.g.apply(ctx).Model(r).Find(result).Error
+	err := g.g.apply(ctx).Scan(result).Error
+	return err
+}
+
+func (g execG[T]) Pluck(ctx context.Context, column string, result interface{}) error {
+	err := g.g.apply(ctx).Pluck(column, result).Error
 	return err
 }
 
