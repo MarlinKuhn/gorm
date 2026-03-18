@@ -49,7 +49,7 @@ type CreateInterface[T any] interface {
 	Limit(offset int) ChainInterface[T]
 	Offset(offset int) ChainInterface[T]
 	Joins(query clause.JoinTarget, on func(db JoinBuilder, joinTable clause.Table, curTable clause.Table) error) ChainInterface[T]
-	Join(jt clause.JoinTarget, on func(db ExternalJoinBuilder, joinTable clause.Table, curTable clause.Table) error) ChainInterface[T]
+	Join(jt clause.JoinTarget, on clause.Expression, moreOn ...clause.Expression) ChainInterface[T]
 	Preload(association string, query func(db PreloadBuilder) error) ChainInterface[T]
 	Select(query string, args ...interface{}) CreateInterface[T]
 	Omit(columns ...string) CreateInterface[T]
@@ -82,7 +82,7 @@ type ChainInterface[T any] interface {
 	Limit(offset int) ChainInterface[T]
 	Offset(offset int) ChainInterface[T]
 	Joins(query clause.JoinTarget, on func(db JoinBuilder, joinTable clause.Table, curTable clause.Table) error) ChainInterface[T]
-	Join(jt clause.JoinTarget, on func(db ExternalJoinBuilder, joinTable clause.Table, curTable clause.Table) error) ChainInterface[T]
+	Join(jt clause.JoinTarget, on clause.Expression, andOn ...clause.Expression) ChainInterface[T]
 	Preload(association string, query func(db PreloadBuilder) error) ChainInterface[T]
 	Select(query string, args ...interface{}) ChainInterface[T]
 	Omit(columns ...string) ChainInterface[T]
@@ -128,12 +128,6 @@ type ExecInterface[T any] interface {
 type JoinBuilder interface {
 	Select(...string) JoinBuilder
 	Omit(...string) JoinBuilder
-	Where(query interface{}, args ...interface{}) JoinBuilder
-	Not(query interface{}, args ...interface{}) JoinBuilder
-	Or(query interface{}, args ...interface{}) JoinBuilder
-}
-
-type ExternalJoinBuilder interface {
 	Where(query interface{}, args ...interface{}) JoinBuilder
 	Not(query interface{}, args ...interface{}) JoinBuilder
 	Or(query interface{}, args ...interface{}) JoinBuilder
@@ -473,8 +467,17 @@ func (c chainG[T]) Joins(jt clause.JoinTarget, on func(db JoinBuilder, joinTable
 	})
 }
 
-func (c chainG[T]) Join(jt clause.JoinTarget, on func(db ExternalJoinBuilder, joinTable clause.Table, curTable clause.Table) error) ChainInterface[T] {
+func (c chainG[T]) Join(jt clause.JoinTarget, on clause.Expression, andOn ...clause.Expression) ChainInterface[T] {
 	return c.with(func(db *DB) *DB {
+		var expression clause.Expression
+		if len(andOn) > 0 {
+			allOn := []clause.Expression{on}
+			allOn = append(allOn, andOn...)
+			expression = clause.AndConditions{Exprs: allOn}
+		} else {
+			expression = on
+		}
+
 		if jt.Table == "" || jt.Table == clause.CurrentTable {
 			jt.Table = clause.JoinTable(strings.Split(jt.Association, ".")...).Name
 		}
@@ -485,11 +488,7 @@ func (c chainG[T]) Join(jt clause.JoinTarget, on func(db ExternalJoinBuilder, jo
 		}
 
 		q := joinBuilder{db: db.Session(&Session{NewDB: true, Initialized: true}).Table(jt.Table)}
-		if on != nil {
-			if err := on(&q, clause.Table{Name: jt.Table}, clause.Table{Name: clause.CurrentTable}); err != nil {
-				db.AddError(err)
-			}
-		}
+		q.Where(expression)
 
 		join := clause.Join{
 			Type:  jt.Type,
