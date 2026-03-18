@@ -710,12 +710,14 @@ func (g execG[T]) First(ctx context.Context) (T, error) {
 }
 
 func (g execG[T]) Scan(ctx context.Context, result interface{}) error {
-	err := g.g.apply(ctx).Scan(result).Error
+	var r T
+	err := g.g.apply(ctx).Model(r).Scan(result).Error
 	return err
 }
 
 func (g execG[T]) Pluck(ctx context.Context, column string, result interface{}) error {
-	err := g.g.apply(ctx).Pluck(column, result).Error
+	var r T
+	err := g.g.apply(ctx).Model(r).Pluck(column, result).Error
 	return err
 }
 
