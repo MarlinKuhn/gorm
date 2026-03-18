@@ -410,6 +410,15 @@ func (q *preloadBuilder) LimitPerRecord(num int) PreloadBuilder {
 
 func (c chainG[T]) Joins(jt clause.JoinTarget, on func(db JoinBuilder, joinTable clause.Table, curTable clause.Table) error) ChainInterface[T] {
 	return c.with(func(db *DB) *DB {
+		if jt.Model != nil {
+			tableName, err := schema.TableName(jt.Model, db.cacheStore, db.NamingStrategy)
+			if err != nil {
+				db.AddError(errors.New("failed to get table name from model"))
+			} else {
+				jt.Association = tableName
+			}
+		}
+
 		if jt.Table == "" || jt.Table == clause.CurrentTable {
 			jt.Table = clause.JoinTable(strings.Split(jt.Association, ".")...).Name
 		}
@@ -476,6 +485,15 @@ func (c chainG[T]) Join(jt clause.JoinTarget, on clause.Expression, andOn ...cla
 			expression = clause.AndConditions{Exprs: allOn}
 		} else {
 			expression = on
+		}
+
+		if jt.Model != nil {
+			tableName, err := schema.TableName(jt.Model, db.cacheStore, db.NamingStrategy)
+			if err != nil {
+				db.AddError(errors.New("failed to get table name from model"))
+			}
+
+			jt.Association = tableName
 		}
 
 		if jt.Table == "" || jt.Table == clause.CurrentTable {
