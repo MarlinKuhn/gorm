@@ -49,6 +49,7 @@ type CreateInterface[T any] interface {
 	Limit(offset int) ChainInterface[T]
 	Offset(offset int) ChainInterface[T]
 	Joins(query clause.JoinTarget, on func(db JoinBuilder, joinTable clause.Table, curTable clause.Table) error) ChainInterface[T]
+	Join(jt clause.JoinTarget, on func(db ExternalJoinBuilder, joinTable clause.Table, curTable clause.Table) error) ChainInterface[T]
 	Preload(association string, query func(db PreloadBuilder) error) ChainInterface[T]
 	Select(query string, args ...interface{}) CreateInterface[T]
 	Omit(columns ...string) CreateInterface[T]
