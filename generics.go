@@ -665,7 +665,15 @@ func (c chainG[T]) Update(ctx context.Context, name string, value any) (rowsAffe
 }
 
 func (c chainG[T]) Updates(ctx context.Context, t T) (rowsAffected int, err error) {
-	res := c.g.apply(ctx).Updates(t)
+	newChain := c.with(func(db *DB) *DB {
+		if len(db.Statement.Selects) == 0 {
+			db.Statement.Selects = []string{"*"}
+		}
+
+		return db
+	})
+
+	res := newChain.g.apply(ctx).Updates(t)
 	return int(res.RowsAffected), res.Error
 }
 
