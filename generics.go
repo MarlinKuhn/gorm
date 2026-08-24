@@ -579,28 +579,27 @@ func (c chainG[T]) Preload(association string, query func(db PreloadBuilder) err
 			q := preloadBuilder{db: tx.getInstance()}
 			if query != nil {
 				if err := query(&q); err != nil {
-					tx.AddError(err)
-					return tx
+					db.AddError(err)
 				}
 			}
 
-			relation, ok := tx.Statement.Schema.Relationships.Relations[association]
+			relation, ok := db.Statement.Schema.Relationships.Relations[association]
 			if !ok {
 				if preloadFields := strings.Split(association, "."); len(preloadFields) > 1 {
-					relationships := &tx.Statement.Schema.Relationships
+					relationships := &db.Statement.Schema.Relationships
 					for _, field := range preloadFields {
 						var ok bool
 						relation, ok = relationships.Relations[field]
 						if ok {
 							relationships = &relation.FieldSchema.Relationships
 						} else {
-							tx.AddError(fmt.Errorf("relation %s not found", association))
-							return tx
+							db.AddError(fmt.Errorf("relation %s not found", association))
+							return nil
 						}
 					}
 				} else {
-					tx.AddError(fmt.Errorf("relation %s not found", association))
-					return tx
+					db.AddError(fmt.Errorf("relation %s not found", association))
+					return nil
 				}
 			}
 
